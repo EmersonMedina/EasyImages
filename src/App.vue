@@ -6,7 +6,7 @@
   >
     <div class="titleContainer bg-grey-darken-3">
       <v-btn
-        class="downloadBtn titleBtn"
+        class="downloadBtn titleBtn btn"
         color="pink"
         prepend-icon="mdi-download"
         @click.prevent="downloadSelectedImages"
@@ -22,7 +22,7 @@
       </h1>
 
       <v-btn
-        class="clearBtn titleBtn"
+        class="clearBtn titleBtn btn"
         color="pink"
         prepend-icon="mdi-backspace-outline"
         @click.prevent="clearImages"
@@ -43,7 +43,7 @@
         label="Ingrese sus palabras mediante comas (,) si desea buscar más de una imagen a la vez"
       ></v-text-field>
       <v-btn
-        class="btnBuscar"
+        class="btnBuscar btn"
         :disabled="keywords === '' || keywords === null"
         :loading="loading"
         color="success"
@@ -57,7 +57,7 @@
     <div v-for="(imageObject, index) in searchedImages" :key="imageObject.name">
       <h2>{{ imageObject.name.toUpperCase() }}</h2>
       <v-slide-group
-        class="pa-4"
+        class="slideGroup"
         selected-class="bg-primary"
         multiple
         show-arrows
@@ -77,10 +77,6 @@
           >
             <div class="d-flex fill-height align-center justify-center">
               <v-img :src="url.url" height="200px" cover class="cardImage">
-                <v-tooltip activator="parent" location="bottom"
-                  >Photo by {{ url.photographerFullName }} on
-                  Unsplash</v-tooltip
-                >
               </v-img>
 
               <v-scale-transition>
@@ -132,16 +128,12 @@ const onSubmit = async () => {
 };
 
 const findImages = async (keywords: Array<string>) => {
-  const accessKey = process.env.VUE_APP_ACCESS_KEY;
-  const apiUrl = `https://api.unsplash.com/search/photos?query=`;
+  const apiKey = process.env.VUE_APP_ACCESS_KEY;
+  const apiUrl = `https://pixabay.com/api/?key=${apiKey}&q=`;
 
   for (let i = 0; i < keywords.length; i++) {
     const keyword = keywords[i];
-    const response = await fetch(`${apiUrl}${keyword}`, {
-      headers: {
-        Authorization: `Client-ID ${accessKey}`,
-      },
-    });
+    const response = await fetch(`${apiUrl}${encodeURIComponent(keyword)}`);
 
     const images = await response.json();
 
@@ -150,12 +142,10 @@ const findImages = async (keywords: Array<string>) => {
       images: [],
     };
 
-    for (let j = 0; j < images.results.length; j++) {
-      const imageUrl = images.results[j].urls.regular;
-      const photographerFullName = images.results[j].user.name;
+    for (let j = 0; j < images.hits.length; j++) {
+      const imageUrl = images.hits[j].webformatURL;
       principalObject.images.push({
         url: imageUrl,
-        photographerFullName,
         isSelected: false,
       });
     }
@@ -267,5 +257,24 @@ const isSelected = (index: number, url: string): boolean => {
 
 .imageNotFound {
   width: 20%;
+}
+
+@media screen and (max-width: 768px) {
+  .titleContainer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  h1 {
+    order: -1;
+  }
+
+  .btn {
+    width: 40%;
+  }
+
+  .slideGroup {
+    padding: 0 !important;
+  }
 }
 </style>
