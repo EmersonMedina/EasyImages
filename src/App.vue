@@ -16,6 +16,7 @@
         </template>
         Descargar
       </v-btn>
+
       <h1>
         Easy Images
         <v-icon>mdi-image-multiple</v-icon>
@@ -53,59 +54,47 @@
         Buscar
       </v-btn>
     </v-form>
-
-    <div v-for="(imageObject, index) in searchedImages" :key="imageObject.name">
-      <h2>{{ imageObject.name.toUpperCase() }}</h2>
-      <v-slide-group
-        class="slideGroup"
-        selected-class="bg-primary"
-        multiple
-        show-arrows
-      >
-        <v-slide-group-item
-          v-slot="{ selectedClass }"
-          v-if="imageObject.images.length > 0"
+    <!-- NUEVO -->
+    <v-card
+      class="mx-auto bg-grey-darken-3"
+      v-if="searchedImages.length > 0"
+    >
+      <v-container class="pa-1" :fluid="true">
+        <v-item-group
+          multiple
+          v-for="(imageObject, principalIndex) in searchedImages"
+          :key="imageObject.name"
         >
-          <v-card
-            color="blue"
-            :class="['ma-4', selectedClass]"
-            height="200"
-            width="200"
-            @click="toggleSelection(index, url.url)"
-            v-for="url in imageObject.images"
-            :key="url.url"
-          >
-            <div class="d-flex fill-height align-center justify-center">
-              <v-img :src="url.url" height="200px" cover class="cardImage">
-              </v-img>
-
-              <v-scale-transition>
-                <v-icon
-                  v-if="url.isSelected"
-                  color="black"
-                  size="48"
-                  icon="mdi-check-bold"
-                ></v-icon>
-              </v-scale-transition>
-            </div>
-          </v-card>
-        </v-slide-group-item>
-        <v-slide-group-item v-else>
-          <v-card class="mx-auto bg-blue-grey-lighten-4">
-            <img src="@/assets/image-not-found.svg" class="imageNotFound" />
-            <v-card-title class="text-h5">
-              No se encontraron imágenes
-            </v-card-title>
-          </v-card>
-        </v-slide-group-item>
-      </v-slide-group>
-    </div>
+        <h2>{{ imageObject.name.toUpperCase() }}</h2>
+          <v-row>
+            <v-col
+              v-for="image in imageObject.images"
+              :key="image.url"
+              cols="12"
+              md="4"
+            >
+              <v-item>
+                <v-img
+                  :src="image.url"
+                  :class="image.url.endsWith('.png') ? 'bg-grey-lighten-4' : 'text-right pa-2'"
+                  :height="250"
+                  @click="toggleSelection(principalIndex, image.url)"
+                >
+                  <v-btn :icon="image.isSelected ? 'mdi-download-box' : 'mdi-download-outline'" size="large" :class="image.isSelected ? 'bg-green-accent-3' : 'bg-white'"/>
+                </v-img>
+              </v-item>
+            </v-col>
+          </v-row>
+        </v-item-group>
+      </v-container>
+    </v-card>
   </v-sheet>
 </template>
 
 <script setup lang="ts">
 import { ref, Ref } from "vue";
 import { IImageObject } from "@/interfaces/IImageObject";
+
 const keywords: Ref<""> = ref("");
 
 const form: Ref<boolean> = ref(false);
@@ -120,16 +109,17 @@ const onSubmit = async () => {
     const words = keywords.value.split(",");
     const trimmedWords = words.map((word) => word.trim());
     loading.value = true;
-    await findImages(trimmedWords);
+    await findImagesFromGoogle(trimmedWords);
     loading.value = false;
   } catch (error) {
     console.error(error);
   }
 };
 
-const findImages = async (keywords: Array<string>) => {
-  const apiKey = process.env.VUE_APP_ACCESS_KEY;
-  const apiUrl = `https://pixabay.com/api/?key=${apiKey}&q=`;
+const findImagesFromGoogle = async (keywords: Array<string>) => {
+  const apiKey = process.env.VUE_APP_GOOGLE_SEARCH_API_KEY;
+  const cx = process.env.VUE_APP_GOOGLE_SEARCH_ENGINE_ID;
+  const apiUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&searchType=image&lr=lang_es&q=`;
 
   for (let i = 0; i < keywords.length; i++) {
     const keyword = keywords[i];
@@ -137,13 +127,14 @@ const findImages = async (keywords: Array<string>) => {
 
     const images = await response.json();
 
+    console.log(images);
     const principalObject: IImageObject = {
       name: keyword,
       images: [],
     };
 
-    for (let j = 0; j < images.hits.length; j++) {
-      const imageUrl = images.hits[j].webformatURL;
+    for (let j = 0; j < images.items.length; j++) {
+      const imageUrl = images.items[j].link;
       principalObject.images.push({
         url: imageUrl,
         isSelected: false,
@@ -155,15 +146,19 @@ const findImages = async (keywords: Array<string>) => {
 };
 
 const downloadSelectedImages = async () => {
-  for (let i = 0; i < searchedImages.value.length; i++) {
+  try {
+    for (let i = 0; i < searchedImages.value.length; i++) {
     const imgObj = searchedImages.value[i];
 
     for (let j = 0; j < imgObj.images.length; j++) {
       const imgElem = imgObj.images[j];
 
       if (imgElem.isSelected)
-        await downloadImage(imgElem.url, `${imgObj.name}-${j}.jpg`);
+        await downloadImage(imgElem.url, `${imgObj.name}-${j}.jpg`)
     }
+  }
+  } catch (error) {
+    console.log(error)
   }
 };
 
@@ -172,22 +167,16 @@ const clearImages = () => {
   keywords.value = "";
 };
 
-async function downloadImage(photoUrl: string, nombreArchivo: string) {
-  const photo = await fetch(photoUrl);
-  // Get the photo blop
-  const photoBlop = await photo.blob();
+async function downloadImage(url:string, title:string) {
+    const image = await fetch(url);
+    const imageURL = URL.createObjectURL(await image.blob());
 
-  const url = window.URL.createObjectURL(photoBlop);
-
-  var a = document.createElement("a");
-  a.style.display = "none";
-  a.href = url;
-  a.download = nombreArchivo;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  window.URL.revokeObjectURL(url);
+    const link = document.createElement("a");
+    link.href = imageURL;
+    link.download = title;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 const toggleSelection = (index: number, url: string): void => {
