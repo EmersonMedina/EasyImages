@@ -104,7 +104,7 @@
                   :height="250"
                   @click="toggleSelection(principalIndex, image.url)"
                 >
-                  <v-btn :icon="image.isSelected ? 'mdi-download-box' : 'mdi-download-outline'" size="large" :class="image.isSelected ? 'bg-green-accent-3' : 'bg-white'"/>
+                  <v-btn :icon="image.isSelected ? 'mdi-check-circle' : 'mdi-check-circle-outline'" size="large" :class="image.isSelected ? 'bg-green-accent-3' : 'bg-white'"/>
                 </v-img>
               </v-item>
             </v-col>
@@ -227,7 +227,7 @@ const copySelectedImages = async () => {
       const imgElem = imgObj.images[j];
 
       if (imgElem.isSelected)
-        await copyImage(imgElem.url, imgElem.title);
+        await copyImage(imgElem.url);
     }
 
     copying.value = false;
@@ -270,7 +270,7 @@ link.click();
 document.body.removeChild(link);
 }
 
-async function copyImage(url:string, title:string) {
+async function copyImage(url:string) {
   const proxyUrl = process.env.VUE_APP_PROXY_URL;
 
   const response = await fetch(proxyUrl + encodeURIComponent(url), {
@@ -429,6 +429,7 @@ const isSelected = (index: number, url: string): boolean => {
 .subContainer {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -449,9 +450,15 @@ const isSelected = (index: number, url: string): boolean => {
 }
 
 @media screen and (max-width: 768px) {
-  .titleContainer {
+  /* .titleContainer {
     flex-direction: column;
     gap: 0.5rem;
+  } */
+
+  .subContainer {
+    flex-direction: column;
+    align-items: center; 
+    justify-content: center;
   }
 
   h1 {
